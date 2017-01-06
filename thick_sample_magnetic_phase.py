@@ -9,7 +9,7 @@ model." Ultramicroscopy 129 (2013): 36-41
 
 import numpy as np
 from numba import jit  # , vectorize, complex128
-import numexper as ne
+import numexpr as ne
 import math
 # from threading import Thread
 # from threading import Lock
@@ -58,7 +58,7 @@ def S_x_S_y(kx, ky, k_perp, R, Ms):
 
 
 def ne_phi_mk_delta_ijk(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a, cos_d,
-                        sin_d, i, j, k):
+                        sin_d, i, j, k, x0, y0, z0):
     """Calculate the phase shift for single sphere.
 
     :param (kx, ky, k_perp):   kx array with dimensions [y_len, x_len]
@@ -71,19 +71,20 @@ def ne_phi_mk_delta_ijk(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a, cos_d,
                               magnetization
     :param a:  lattice parameter of the grid representing the sample
     :param (cos_d, sin_d):  sine and cosine of the sample angle delta
-    :param (i,j,k):
+    :param (i,j,k):  x, y, z indices
+    :param x_shift:  position of axis of rotation
     :return phi_ijk:  phase shift from one sphere
     """
-    trig = cos_d*i - sin_d*k
-    sy_cof = mu_x[i, j, k]*cos_d - mu_z[i, j, k]*sin_d
+    trig = cos_d*(i-x0) + sin_d*(k-z0)
+    sy_cof = mu_x[i, j, k]*cos_d + mu_z[i, j, k]*sin_d
     sx_cof = mu_y[i, j, k]
-    return ne.evaluate('exp(2.0*a*1.0j*(kx*trig+ky*j))*(sx_cof*Sx-sy_cof*Sy)')
+    return -ne.evaluate('exp(2.0*a*1.0j*(kx*trig+ky*(j-y0)))*(sy_cof*Sy-sx_cof*Sx)')
 
 
 # this is the best optimized I have been able to get so far
 @jit
 def phi_mk_delta(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a,
-                 delta, i_s, j_s, k_s, phi):
+                 delta, i_s, j_s, k_s, phi, x0, y0, z0):
     """Calculate the phase shift for all the spheres in sample.
 
     :param (kx, ky, k_perp):   kx array with dimensions [y_len, x_len]
@@ -96,7 +97,10 @@ def phi_mk_delta(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a,
                               magnetization
     :param a:  lattice parameter of the grid representing the sample
     :param delta:  sample tilt angle delta about the y-axis
-    :param (i,j,k):
+    :param (i,j,k):  x, y, z indices for each sphere
+    :param (x0,y0,z0):  x, y, z position of the center of rotation, seems to
+                        make the most sense that is is the center of mass but
+                        it can be any point
     :return phi_ijk:  phase shift from one sphere
     """
     sin_d = math.sin(delta)
@@ -104,5 +108,5 @@ def phi_mk_delta(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a,
     for coord in zip(i_s, j_s, k_s):
         i, j, k = coord
         phi += ne_phi_mk_delta_ijk(kx, ky, Sx, Sy, mu_x, mu_y, mu_z, a,
-                                   cos_d, sin_d, i, j, k)
+                                   cos_d, sin_d, i, j, k, x0, y0, z0)
     return phi
