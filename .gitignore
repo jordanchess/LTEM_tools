@@ -45,3 +45,6 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+notebooks/.ipynb_checkpoints/Calculating A-B phase shift from a 3D magnetic sample-Copy1-checkpoint.ipynb
+notebooks/.ipynb_checkpoints/Calculating A-B phase shift from a 3D magnetic sample-checkpoint.ipynb
+*.pyc
